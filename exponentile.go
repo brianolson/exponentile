@@ -2,6 +2,7 @@ package main
 
 import (
 	crand "crypto/rand"
+	"fmt"
 	"math/rand/v2"
 )
 
@@ -104,6 +105,38 @@ func (cl *Collapse) Total() int {
 	}
 	total -= (len(cl.Ranges) - 1)
 	return total
+}
+
+var collapseMultiplierLut [12]int
+
+func init() {
+	collapseMultiplierLut[3] = 2
+	for i := 4; i < len(collapseMultiplierLut); i++ {
+		collapseMultiplierLut[i] = collapseMultiplierLut[i-1] * 2
+	}
+}
+
+func (cl *Collapse) Multiplier() int {
+	return collapseMultiplierLut[cl.Total()]
+}
+
+func (cl *Collapse) AnchorPoint() (int, int) {
+	if len(cl.Ranges) == 0 {
+		panic("no ranges for Collapse.AnchorPoint()")
+	} else if len(cl.Ranges) == 1 {
+		return cl.Ranges[0].Xa, cl.Ranges[0].Ya
+	} else if len(cl.Ranges) == 2 {
+		r1 := cl.Ranges[0]
+		r2 := cl.Ranges[1]
+		if r1.Xa == r1.Xb {
+			// r1 is x-constant, use its x and r2's y
+			return r1.Xa, r2.Ya
+		} else {
+			return r2.Xa, r1.Ya
+		}
+	} else {
+		panic("too many ranges for Collapse.AnchorPoint()")
+	}
 }
 
 func (et *Exponentile) trySwap(xa, ya, xb, yb int, possibleMoves []Move) []Move {
@@ -342,10 +375,29 @@ func (et *Exponentile) ApplyMove(mov Move) {
 	collapses := movesToCollapses(collapseMoves)
 	for _, collapse := range collapses {
 		if len(collapse.Ranges) == 1 {
-			if collapse.Ranges[0].Contains(mov.Xa, mov.Ya) {
+			tmov := collapse.Ranges[0]
+			if tmov.Contains(mov.Xa, mov.Ya) {
 				// pin result to where the move touched it
-
+				et.clearExcept(tmov.Xa, tmov.Ya, tmov.Xb, tmov.Yb, mov.Xa, mov.Ya)
+				et.Board[(mov.Ya*et.Size)+mov.Xa] *= collapse.Multiplier()
+			} else if tmov.Contains(mov.Xb, mov.Yb) {
+				// pin result to where the move touched it
+				et.clearExcept(tmov.Xa, tmov.Ya, tmov.Xb, tmov.Yb, mov.Xb, mov.Yb)
+				et.Board[(mov.Yb*et.Size)+mov.Xb] *= collapse.Multiplier()
+			} else {
+				// collapse to leftmost/topmost
+				et.clearExcept(tmov.Xa, tmov.Ya, tmov.Xb, tmov.Yb, tmov.Xa, tmov.Ya)
+				et.Board[(tmov.Ya*et.Size)+tmov.Xa] *= collapse.Multiplier()
 			}
+		} else if len(collapse.Ranges) == 2 {
+			// collapse to intersection point
+			ax, ay := collapse.AnchorPoint()
+			for _, cr := range collapse.Ranges {
+				et.clearExcept(cr.Xa, cr.Ya, cr.Xb, cr.Yb, ax, ay)
+			}
+			et.Board[(ay*et.Size)+ax] *= collapse.Multiplier()
+		} else {
+			panic(fmt.Sprintf("len(collapse.Ranges)=%d", len(collapse.Ranges)))
 		}
 	}
 }
