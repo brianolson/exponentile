@@ -15,6 +15,12 @@ type Exponentile struct {
 	Rand *rand.Rand
 }
 
+type BoardPrinter interface {
+	// Print must do any state copying before it returns
+	// Exponentile will move on without us
+	Print(Exponentile)
+}
+
 const DefaultExponentileSize = 8
 
 // NewExponentile
@@ -399,6 +405,36 @@ func (et *Exponentile) ApplyMove(mov Move) {
 		} else {
 			panic(fmt.Sprintf("len(collapse.Ranges)=%d", len(collapse.Ranges)))
 		}
+	}
+	et.gravityDown()
+	// TODO: post update
+
+	for {
+		// process chain reactions
+		ncollapseMoves := et.FindCollapses(false)
+		if len(ncollapseMoves) == 0 {
+			break
+		}
+		ncollapses := movesToCollapses(ncollapseMoves)
+		for _, collapse := range ncollapses {
+			if len(collapse.Ranges) == 1 {
+				tmov := collapse.Ranges[0]
+				// collapse to leftmost/topmost
+				et.clearExcept(tmov.Xa, tmov.Ya, tmov.Xb, tmov.Yb, tmov.Xa, tmov.Ya)
+				et.Board[(tmov.Ya*et.Size)+tmov.Xa] *= collapse.Multiplier()
+			} else if len(collapse.Ranges) == 2 {
+				// collapse to intersection point
+				ax, ay := collapse.AnchorPoint()
+				for _, cr := range collapse.Ranges {
+					et.clearExcept(cr.Xa, cr.Ya, cr.Xb, cr.Yb, ax, ay)
+				}
+				et.Board[(ay*et.Size)+ax] *= collapse.Multiplier()
+			} else {
+				panic(fmt.Sprintf("len(collapse.Ranges)=%d", len(collapse.Ranges)))
+			}
+		}
+		et.gravityDown()
+		// TODO: post update
 	}
 }
 
