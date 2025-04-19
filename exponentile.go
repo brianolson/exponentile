@@ -13,13 +13,29 @@ type Exponentile struct {
 	CollapseTemp [][]*Move
 
 	Rand *rand.Rand
+
+	Printer BoardPrinter
 }
 
 type BoardPrinter interface {
 	// Print must do any state copying before it returns
 	// Exponentile will move on without us
-	Print(Exponentile)
+	Print(*Exponentile)
 }
+
+type xConsoleBeardPrinter struct{}
+
+func (xConsoleBeardPrinter xConsoleBeardPrinter) Print(et *Exponentile) {
+	for y := 0; y < et.Size; y++ {
+		for x := 0; x < et.Size; x++ {
+			v := et.Board[(y*et.Size)+x]
+			fmt.Printf("%6d,", v)
+		}
+		fmt.Println()
+	}
+}
+
+var ConsoleBeardPrinter BoardPrinter = &xConsoleBeardPrinter{}
 
 const DefaultExponentileSize = 8
 
@@ -36,6 +52,7 @@ func NewExponentile(size int) *Exponentile {
 		Board:        make([]int, size*size),
 		CollapseTemp: make([][]*Move, size*size),
 		Rand:         rand.New(rand.NewChaCha8(seed)),
+		Printer:      ConsoleBeardPrinter,
 	}
 }
 
@@ -407,6 +424,7 @@ func (et *Exponentile) ApplyMove(mov Move) {
 		}
 	}
 	et.gravityDown()
+	et.Printer.Print(et)
 	// TODO: post update
 
 	for {
