@@ -1,24 +1,38 @@
 package main
 
 import (
-  "fmt"
+	crand "crypto/rand"
+	"fmt"
+	"math/rand/v2"
 )
 
 //TIP To run your code, right-click the code and select <b>Run</b>. Alternatively, click
 // the <icon src="AllIcons.Actions.Execute"/> icon in the gutter and select the <b>Run</b> menu item from here.
 
 func main() {
-  //TIP Press <shortcut actionId="ShowIntentionActions"/> when your caret is at the underlined or highlighted text
-  // to see how GoLand suggests fixing it.
-  s := "gopher"
-  fmt.Println("Hello and welcome, %s!", s)
 
-  for i := 1; i <= 5; i++ {
-	//TIP You can try debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-	// for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>. To start your debugging session, 
-	// right-click your code in the editor and select the <b>Debug</b> option. 
-	fmt.Println("i =", 100/i)
-  }
+	var seed [32]byte
+	_, _ = crand.Read(seed[:])
+	rng := rand.New(rand.NewChaCha8(seed))
+
+	et := NewExponentile(8)
+
+	steps := 0
+	for {
+		et.Printer.Print(et)
+		fmt.Printf("[%3d] score %d\n\n", steps, et.Score)
+		moves := et.FindMoves()
+		if len(moves) == 0 {
+			fmt.Println("No moves found")
+			break
+		}
+		nextm := moves[rng.IntN(len(moves))]
+		et.ApplyMove(nextm)
+		steps++
+		if steps > 10 {
+			break
+		}
+	}
 }
 
 //TIP See GoLand help at <a href="https://www.jetbrains.com/help/go/">jetbrains.com/help/go/</a>.

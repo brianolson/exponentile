@@ -9,6 +9,7 @@ import (
 type Exponentile struct {
 	Size  int
 	Board []int
+	Score int
 
 	CollapseTemp [][]*Move
 
@@ -23,9 +24,9 @@ type BoardPrinter interface {
 	Print(*Exponentile)
 }
 
-type xConsoleBeardPrinter struct{}
+type xConsoleBoardPrinter struct{}
 
-func (xConsoleBeardPrinter xConsoleBeardPrinter) Print(et *Exponentile) {
+func (xConsoleBoardPrinter xConsoleBoardPrinter) Print(et *Exponentile) {
 	for y := 0; y < et.Size; y++ {
 		for x := 0; x < et.Size; x++ {
 			v := et.Board[(y*et.Size)+x]
@@ -35,7 +36,7 @@ func (xConsoleBeardPrinter xConsoleBeardPrinter) Print(et *Exponentile) {
 	}
 }
 
-var ConsoleBeardPrinter BoardPrinter = &xConsoleBeardPrinter{}
+var ConsoleBoardPrinter BoardPrinter = &xConsoleBoardPrinter{}
 
 const DefaultExponentileSize = 8
 
@@ -46,13 +47,13 @@ func NewExponentile(size int) *Exponentile {
 		size = DefaultExponentileSize
 	}
 	var seed [32]byte
-	crand.Read(seed[:])
+	_, _ = crand.Read(seed[:])
 	return &Exponentile{
 		Size:         size,
 		Board:        make([]int, size*size),
 		CollapseTemp: make([][]*Move, size*size),
 		Rand:         rand.New(rand.NewChaCha8(seed)),
-		Printer:      ConsoleBeardPrinter,
+		Printer:      ConsoleBoardPrinter,
 	}
 }
 
@@ -372,6 +373,14 @@ func (et *Exponentile) randTile() int {
 	}
 }
 
+func (et *Exponentile) randomFill() {
+	for x := 0; x < et.Size; x++ {
+		for y := 0; y < et.Size; y++ {
+			if et.Board[y*et.Size+x] == 0 {
+			}
+		}
+	}
+}
 func (et *Exponentile) gravityDown() {
 	// for each column, compact down, replace empties at top
 	for x := 0; x < et.Size; x++ {
@@ -396,21 +405,25 @@ func (et *Exponentile) gravityDown() {
 func (et *Exponentile) ApplyMove(mov Move) {
 	collapseMoves := et.FindCollapses(true)
 	collapses := movesToCollapses(collapseMoves)
+	newValue := 0
 	for _, collapse := range collapses {
 		if len(collapse.Ranges) == 1 {
 			tmov := collapse.Ranges[0]
 			if tmov.Contains(mov.Xa, mov.Ya) {
 				// pin result to where the move touched it
 				et.clearExcept(tmov.Xa, tmov.Ya, tmov.Xb, tmov.Yb, mov.Xa, mov.Ya)
-				et.Board[(mov.Ya*et.Size)+mov.Xa] *= collapse.Multiplier()
+				newValue = et.Board[(mov.Ya*et.Size)+mov.Xa] * collapse.Multiplier()
+				et.Board[(mov.Ya*et.Size)+mov.Xa] = newValue
 			} else if tmov.Contains(mov.Xb, mov.Yb) {
 				// pin result to where the move touched it
 				et.clearExcept(tmov.Xa, tmov.Ya, tmov.Xb, tmov.Yb, mov.Xb, mov.Yb)
-				et.Board[(mov.Yb*et.Size)+mov.Xb] *= collapse.Multiplier()
+				newValue = et.Board[(mov.Yb*et.Size)+mov.Xb] * collapse.Multiplier()
+				et.Board[(mov.Yb*et.Size)+mov.Xb] = newValue
 			} else {
 				// collapse to leftmost/topmost
 				et.clearExcept(tmov.Xa, tmov.Ya, tmov.Xb, tmov.Yb, tmov.Xa, tmov.Ya)
-				et.Board[(tmov.Ya*et.Size)+tmov.Xa] *= collapse.Multiplier()
+				newValue = et.Board[(tmov.Ya*et.Size)+tmov.Xa] * collapse.Multiplier()
+				et.Board[(tmov.Ya*et.Size)+tmov.Xa] = newValue
 			}
 		} else if len(collapse.Ranges) == 2 {
 			// collapse to intersection point
@@ -418,14 +431,15 @@ func (et *Exponentile) ApplyMove(mov Move) {
 			for _, cr := range collapse.Ranges {
 				et.clearExcept(cr.Xa, cr.Ya, cr.Xb, cr.Yb, ax, ay)
 			}
-			et.Board[(ay*et.Size)+ax] *= collapse.Multiplier()
+			newValue = et.Board[(ay*et.Size)+ax] * collapse.Multiplier()
+			et.Board[(ay*et.Size)+ax] = newValue
 		} else {
 			panic(fmt.Sprintf("len(collapse.Ranges)=%d", len(collapse.Ranges)))
 		}
+		et.Score += newValue
 	}
 	et.gravityDown()
 	et.Printer.Print(et)
-	// TODO: post update
 
 	for {
 		// process chain reactions
@@ -439,20 +453,23 @@ func (et *Exponentile) ApplyMove(mov Move) {
 				tmov := collapse.Ranges[0]
 				// collapse to leftmost/topmost
 				et.clearExcept(tmov.Xa, tmov.Ya, tmov.Xb, tmov.Yb, tmov.Xa, tmov.Ya)
-				et.Board[(tmov.Ya*et.Size)+tmov.Xa] *= collapse.Multiplier()
+				newValue = et.Board[(tmov.Ya*et.Size)+tmov.Xa] * collapse.Multiplier()
+				et.Board[(tmov.Ya*et.Size)+tmov.Xa] = newValue
 			} else if len(collapse.Ranges) == 2 {
 				// collapse to intersection point
 				ax, ay := collapse.AnchorPoint()
 				for _, cr := range collapse.Ranges {
 					et.clearExcept(cr.Xa, cr.Ya, cr.Xb, cr.Yb, ax, ay)
 				}
-				et.Board[(ay*et.Size)+ax] *= collapse.Multiplier()
+				newValue = et.Board[(ay*et.Size)+ax] * collapse.Multiplier()
+				et.Board[(ay*et.Size)+ax] = newValue
 			} else {
 				panic(fmt.Sprintf("len(collapse.Ranges)=%d", len(collapse.Ranges)))
 			}
+			et.Score += newValue
 		}
 		et.gravityDown()
-		// TODO: post update
+		et.Printer.Print(et)
 	}
 }
 
