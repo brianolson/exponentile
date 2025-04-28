@@ -62,6 +62,7 @@ func NewExponentile(size int) *Exponentile {
 		Rand:         rand.New(rand.NewChaCha8(seed)),
 		Printer:      ConsoleBoardPrinter,
 	}
+	// TODO: have a recursive search no-start-collapse start builder
 	et.randomFill()
 	et.ambientCollapses()
 	et.Score = 0
@@ -353,7 +354,7 @@ func (et *Exponentile) FindCollapses(setTemp bool) []*Move {
 func movesToCollapses(moves []*Move) []Collapse {
 	out := make([]Collapse, 0, len(moves))
 	for i, mov := range moves {
-		fmt.Printf("mov[%d] (%d,%d) <-> (%d,%d)\n", i, mov.Xa, mov.Ya, mov.Xb, mov.Yb)
+		//fmt.Printf("mov[%d] (%d,%d) <-> (%d,%d)\n", i, mov.Xa, mov.Ya, mov.Xb, mov.Yb)
 		var nc Collapse
 		nc.Ranges = append(nc.Ranges, mov)
 		for _, collideMov := range mov.collides {
@@ -366,14 +367,14 @@ func movesToCollapses(moves []*Move) []Collapse {
 		}
 		out = append(out, nc)
 	}
-	for ci, co := range out {
-		fmt.Printf("col[%d] %s t=%d m=%d\n", ci, co.String(), co.Total(), co.Multiplier())
-	}
+	//for ci, co := range out {
+	//	fmt.Printf("col[%d] %s t=%d m=%d\n", ci, co.String(), co.Total(), co.Multiplier())
+	//}
 	return out
 }
 
 func (et *Exponentile) clearExcept(xa, ya, xb, yb, keepx, keepy int) {
-	fmt.Printf("clearExcept(%d,%d, %d,%d, %d,%d)\n", xa, ya, xb, yb, keepx, keepy)
+	//fmt.Printf("clearExcept(%d,%d, %d,%d, %d,%d)\n", xa, ya, xb, yb, keepx, keepy)
 	if xa == xb {
 		for ty := ya; ty <= yb; ty++ {
 			if xa == keepx && ty == keepy {
@@ -408,9 +409,9 @@ func (et *Exponentile) randTile() int {
 func (et *Exponentile) randomFill() {
 	for x := 0; x < et.Size; x++ {
 		for y := 0; y < et.Size; y++ {
-			if et.Board[y*et.Size+x] == 0 {
-				et.Board[y*et.Size+x] = et.randTile()
-			}
+			//if et.Board[y*et.Size+x] == 0 {
+			et.Board[y*et.Size+x] = et.randTile()
+			//}
 		}
 	}
 }
@@ -478,11 +479,11 @@ func (et *Exponentile) ApplyMove(mov Move) {
 			panic(fmt.Sprintf("len(collapse.Ranges)=%d", len(collapse.Ranges)))
 		}
 		et.Score += newValue
-		fmt.Printf("score + %d -> %d\n", newValue, et.Score)
+		//fmt.Printf("score + %d -> %d\n", newValue, et.Score)
 	}
 	et.gravityDown()
-	et.Printer.Print(et)
-	fmt.Printf("collapsedA, score %d\n", et.Score)
+	//et.Printer.Print(et)
+	//fmt.Printf("collapsedA, score %d\n", et.Score)
 
 	et.ambientCollapses()
 }
@@ -515,11 +516,11 @@ func (et *Exponentile) ambientCollapses() {
 			}
 			et.Score += newValue
 		}
-		et.Printer.Print(et)
-		fmt.Println("^ cleared")
+		//et.Printer.Print(et)
+		//fmt.Println("^ cleared")
 		et.gravityDown()
-		et.Printer.Print(et)
-		fmt.Printf("collapsedB, score %d\n", et.Score)
+		//et.Printer.Print(et)
+		//fmt.Printf("collapsedB, score %d\n", et.Score)
 	}
 }
 
