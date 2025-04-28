@@ -16,18 +16,21 @@ func main() {
 	rng := rand.New(rand.NewChaCha8(seed))
 
 	et := NewExponentile(8)
+	fmt.Printf("=== start ===\n")
+	et.Printer.Print(et)
 
 	steps := 0
 	for {
-		et.Printer.Print(et)
-		fmt.Printf("[%3d] score %d\n\n", steps, et.Score)
 		moves := et.FindMoves()
 		if len(moves) == 0 {
 			fmt.Println("No moves found")
 			break
 		}
 		nextm := moves[rng.IntN(len(moves))]
+		fmt.Printf("move (%d,%d)<->(%d,%d)\n", nextm.Xa, nextm.Ya, nextm.Xb, nextm.Yb)
 		et.ApplyMove(nextm)
+		et.Printer.Print(et)
+		fmt.Printf("[%3d] score %d\n\n", steps, et.Score)
 		steps++
 		if steps > 10 {
 			break

@@ -4,6 +4,7 @@ import (
 	crand "crypto/rand"
 	"fmt"
 	"math/rand/v2"
+	"strings"
 )
 
 type Exponentile struct {
@@ -13,9 +14,15 @@ type Exponentile struct {
 
 	CollapseTemp [][]*Move
 
-	Rand *rand.Rand
+	Rand IntNSource
 
 	Printer BoardPrinter
+}
+
+// all we actually need out of v2.Rand
+// abstracted for testing
+type IntNSource interface {
+	IntN(int) int
 }
 
 type BoardPrinter interface {
@@ -30,7 +37,7 @@ func (xConsoleBoardPrinter xConsoleBoardPrinter) Print(et *Exponentile) {
 	for y := 0; y < et.Size; y++ {
 		for x := 0; x < et.Size; x++ {
 			v := et.Board[(y*et.Size)+x]
-			fmt.Printf("%6d,", v)
+			fmt.Printf("%6d", v)
 		}
 		fmt.Println()
 	}
@@ -48,13 +55,17 @@ func NewExponentile(size int) *Exponentile {
 	}
 	var seed [32]byte
 	_, _ = crand.Read(seed[:])
-	return &Exponentile{
+	et := &Exponentile{
 		Size:         size,
 		Board:        make([]int, size*size),
 		CollapseTemp: make([][]*Move, size*size),
 		Rand:         rand.New(rand.NewChaCha8(seed)),
 		Printer:      ConsoleBoardPrinter,
 	}
+	et.randomFill()
+	et.ambientCollapses()
+	et.Score = 0
+	return et
 }
 
 type Point struct {
@@ -75,9 +86,9 @@ type Move struct {
 
 func (m *Move) Length() int {
 	if m.Xa == m.Xb {
-		return iabs(m.Ya - m.Yb)
+		return iabs(m.Ya-m.Yb) + 1
 	}
-	return iabs(m.Xa - m.Xb)
+	return iabs(m.Xa-m.Xb) + 1
 }
 
 func (m *Move) EnumeratePoints() []Point {
@@ -124,11 +135,27 @@ type Collapse struct {
 
 func (cl *Collapse) Total() int {
 	total := 0
-	for _, m := range cl.Ranges {
-		total += m.Length()
+	for ri, m := range cl.Ranges {
+		if ri == 0 {
+			total += m.Length()
+		} else {
+			total += m.Length() - 1
+		}
 	}
-	total -= (len(cl.Ranges) - 1)
 	return total
+}
+
+func (cl *Collapse) String() string {
+	var sb strings.Builder
+	sb.WriteString("{")
+	for i, m := range cl.Ranges {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		fmt.Fprintf(&sb, "(%d,%d) <-> (%d,%d)", m.Xa, m.Ya, m.Xb, m.Yb)
+	}
+	sb.WriteString("}")
+	return sb.String()
 }
 
 var collapseMultiplierLut [12]int
@@ -326,6 +353,7 @@ func (et *Exponentile) FindCollapses(setTemp bool) []*Move {
 func movesToCollapses(moves []*Move) []Collapse {
 	out := make([]Collapse, 0, len(moves))
 	for i, mov := range moves {
+		fmt.Printf("mov[%d] (%d,%d) <-> (%d,%d)\n", i, mov.Xa, mov.Ya, mov.Xb, mov.Yb)
 		var nc Collapse
 		nc.Ranges = append(nc.Ranges, mov)
 		for _, collideMov := range mov.collides {
@@ -338,10 +366,14 @@ func movesToCollapses(moves []*Move) []Collapse {
 		}
 		out = append(out, nc)
 	}
+	for ci, co := range out {
+		fmt.Printf("col[%d] %s t=%d m=%d\n", ci, co.String(), co.Total(), co.Multiplier())
+	}
 	return out
 }
 
 func (et *Exponentile) clearExcept(xa, ya, xb, yb, keepx, keepy int) {
+	fmt.Printf("clearExcept(%d,%d, %d,%d, %d,%d)\n", xa, ya, xb, yb, keepx, keepy)
 	if xa == xb {
 		for ty := ya; ty <= yb; ty++ {
 			if xa == keepx && ty == keepy {
@@ -377,6 +409,7 @@ func (et *Exponentile) randomFill() {
 	for x := 0; x < et.Size; x++ {
 		for y := 0; y < et.Size; y++ {
 			if et.Board[y*et.Size+x] == 0 {
+				et.Board[y*et.Size+x] = et.randTile()
 			}
 		}
 	}
@@ -388,10 +421,12 @@ func (et *Exponentile) gravityDown() {
 		yin := yout - 1
 		for yout >= 0 {
 			if et.Board[(yout*et.Size)+x] == 0 {
+				for (yin >= 0) && (et.Board[(yin*et.Size)+x] == 0) {
+					yin--
+				}
 				if yin >= 0 {
 					et.Board[(yout*et.Size)+x] = et.Board[(yin*et.Size)+x]
 					et.Board[(yin*et.Size)+x] = 0
-					yin--
 				} else {
 					et.Board[(yout*et.Size)+x] = et.randTile()
 				}
@@ -403,6 +438,12 @@ func (et *Exponentile) gravityDown() {
 }
 
 func (et *Exponentile) ApplyMove(mov Move) {
+	// apply swap
+	av := et.Board[(mov.Ya*et.Size)+mov.Xa]
+	et.Board[(mov.Ya*et.Size)+mov.Xa] = et.Board[(mov.Yb*et.Size)+mov.Xb]
+	et.Board[(mov.Yb*et.Size)+mov.Xb] = av
+
+	// apply consequences
 	collapseMoves := et.FindCollapses(true)
 	collapses := movesToCollapses(collapseMoves)
 	newValue := 0
@@ -437,10 +478,15 @@ func (et *Exponentile) ApplyMove(mov Move) {
 			panic(fmt.Sprintf("len(collapse.Ranges)=%d", len(collapse.Ranges)))
 		}
 		et.Score += newValue
+		fmt.Printf("score + %d -> %d\n", newValue, et.Score)
 	}
 	et.gravityDown()
 	et.Printer.Print(et)
+	fmt.Printf("collapsedA, score %d\n", et.Score)
 
+	et.ambientCollapses()
+}
+func (et *Exponentile) ambientCollapses() {
 	for {
 		// process chain reactions
 		ncollapseMoves := et.FindCollapses(false)
@@ -449,27 +495,31 @@ func (et *Exponentile) ApplyMove(mov Move) {
 		}
 		ncollapses := movesToCollapses(ncollapseMoves)
 		for _, collapse := range ncollapses {
+			var newValue int
 			if len(collapse.Ranges) == 1 {
 				tmov := collapse.Ranges[0]
 				// collapse to leftmost/topmost
-				et.clearExcept(tmov.Xa, tmov.Ya, tmov.Xb, tmov.Yb, tmov.Xa, tmov.Ya)
 				newValue = et.Board[(tmov.Ya*et.Size)+tmov.Xa] * collapse.Multiplier()
+				et.clearExcept(tmov.Xa, tmov.Ya, tmov.Xb, tmov.Yb, tmov.Xa, tmov.Ya)
 				et.Board[(tmov.Ya*et.Size)+tmov.Xa] = newValue
 			} else if len(collapse.Ranges) == 2 {
 				// collapse to intersection point
 				ax, ay := collapse.AnchorPoint()
+				newValue = et.Board[(ay*et.Size)+ax] * collapse.Multiplier()
 				for _, cr := range collapse.Ranges {
 					et.clearExcept(cr.Xa, cr.Ya, cr.Xb, cr.Yb, ax, ay)
 				}
-				newValue = et.Board[(ay*et.Size)+ax] * collapse.Multiplier()
 				et.Board[(ay*et.Size)+ax] = newValue
 			} else {
 				panic(fmt.Sprintf("len(collapse.Ranges)=%d", len(collapse.Ranges)))
 			}
 			et.Score += newValue
 		}
+		et.Printer.Print(et)
+		fmt.Println("^ cleared")
 		et.gravityDown()
 		et.Printer.Print(et)
+		fmt.Printf("collapsedB, score %d\n", et.Score)
 	}
 }
 
