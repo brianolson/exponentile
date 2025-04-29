@@ -54,7 +54,12 @@ func sourceThread(wg *sync.WaitGroup, source chan<- int, N int) {
 
 func testhread(wg *sync.WaitGroup, source <-chan int, results chan<- Result, threadNo int) {
 	defer wg.Done()
-	strat := NewRandomStrategy()
+	var strat Strategy
+	if false {
+		strat = NewRandomStrategy()
+	} else {
+		strat = NewRecursiveSearch(3)
+	}
 	et := NewExponentile(8)
 	stucky := 0
 	for i := range source {

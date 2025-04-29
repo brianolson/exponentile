@@ -191,6 +191,12 @@ func (cl *Collapse) AnchorPoint() (int, int) {
 	}
 }
 
+func (et *Exponentile) alloc(size int) {
+	et.Size = size
+	et.Board = make([]int, size*size)
+	et.CollapseTemp = make([][]*Move, size*size)
+}
+
 func (et *Exponentile) trySwap(xa, ya, xb, yb int, possibleMoves []Move) []Move {
 	olda := et.Board[(ya*et.Size)+xa]
 	oldb := et.Board[(yb*et.Size)+xb]
@@ -217,6 +223,16 @@ func (et *Exponentile) trySwap(xa, ya, xb, yb int, possibleMoves []Move) []Move 
 	return possibleMoves
 }
 
+// Copy makes `this` Exponentile into a copy of source
+// destination Rand, CollapseTemp, Printer are not set
+func (et *Exponentile) Copy(source *Exponentile) {
+	if et.Size != source.Size || len(et.Board) != len(source.Board) {
+		et.Board = make([]int, len(source.Board))
+		et.Size = source.Size
+	}
+	copy(et.Board, source.Board)
+	et.Score = source.Score
+}
 func (et *Exponentile) FindMoves() []Move {
 	var possibleMoves []Move
 	for ya := 0; ya < et.Size; ya++ {
