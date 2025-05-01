@@ -56,3 +56,36 @@ A few of the better runs I got over the course of a couple hours:
 
 1000 tests, score min=11360 mean=392987.204000 max=3013644, (1h51m12.580284624s)
 ```
+
+Pretty good! What happens if I increase the search depth by one?
+
+```
+[   57] 3968384 (43342 steps) (59m55.547424465s)
+[  532] 3424580 (38400 steps) (50m23.142713213s)
+[  219] 3243092 (36383 steps) (50m7.140595522s)
+[  340] 3193312 (36481 steps) (45m27.303326833s)
+
+650 tests, score min=20460 mean=929657.5384615385 max=3968384
+```
+
+It takes a lot longer and has results quite a bit better!
+
+* The min finishing score almost doubled
+* The mean finishing score increased 2.36x
+* The max score increased 31.7%
+
+The peak of what's possible didn't advance very far, but most solutions go tmuch better.
+The tradeoff is it used a lot more CPU time.
+I only ran 650 tests in about 24 hours and then got bore of waiting and wrote this up.
+
+## Possible Future Work
+
+The Recursive Solver is single threaded.
+This is fine for exploring the solution space and running many independent tests, but no one solution is produced very fast.
+There's parallelism possible, at the very least the first level or two of recursion could run multi threaded (with recursion happeninng within a thread for each first or second level move).
+
+The Recursive Solver doesn't account for random effects.
+It could potentially use oversampling, run each move multiple times, to get an average effect of the move plus possible random new tiles showing up.
+
+Micro-Optimizations. I threw this together as a hobby project and it's fast enough.
+Actually running a profiler to see where the CPU time goes might show some things to tweak.
