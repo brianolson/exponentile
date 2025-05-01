@@ -390,7 +390,6 @@ func movesToCollapses(moves []*Move) []Collapse {
 }
 
 func (et *Exponentile) clearExcept(xa, ya, xb, yb, keepx, keepy int) {
-	//fmt.Printf("clearExcept(%d,%d, %d,%d, %d,%d)\n", xa, ya, xb, yb, keepx, keepy)
 	if xa == xb {
 		for ty := ya; ty <= yb; ty++ {
 			if xa == keepx && ty == keepy {
@@ -425,9 +424,7 @@ func (et *Exponentile) randTile() int {
 func (et *Exponentile) randomFill() {
 	for x := 0; x < et.Size; x++ {
 		for y := 0; y < et.Size; y++ {
-			//if et.Board[y*et.Size+x] == 0 {
 			et.Board[y*et.Size+x] = et.randTile()
-			//}
 		}
 	}
 }
@@ -498,8 +495,6 @@ func (et *Exponentile) ApplyMove(mov Move) {
 		//fmt.Printf("score + %d -> %d\n", newValue, et.Score)
 	}
 	et.gravityDown()
-	//et.Printer.Print(et)
-	//fmt.Printf("collapsedA, score %d\n", et.Score)
 
 	et.ambientCollapses()
 }
@@ -532,11 +527,7 @@ func (et *Exponentile) ambientCollapses() {
 			}
 			et.Score += newValue
 		}
-		//et.Printer.Print(et)
-		//fmt.Println("^ cleared")
 		et.gravityDown()
-		//et.Printer.Print(et)
-		//fmt.Printf("collapsedB, score %d\n", et.Score)
 	}
 }
 

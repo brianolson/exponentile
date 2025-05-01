@@ -153,6 +153,7 @@ func main() {
 	fmt.Printf("%d tests, score min=%d mean=%f max=%d, (%s)\n", len(allScores), scoreMin, scoreMean, scoreMax, dt.String())
 }
 
+// TestOne was main() before main grew to multithreaded testing
 func TestOne() {
 	strat := NewRandomStrategy()
 
