@@ -4,6 +4,8 @@ Someone nerd-sniped me with a link to the game ExponenTile
 
 https://www.bellika.dk/exponentile
 
+https://github.com/MikeBellika/tile-game
+
 Too many hours sunk into this game, the best thing since 2048, required a cure.
 Once I've written a solver for the game, it's no longer an interesting game.
 (I did this for myself for Soduku many years back.)
@@ -11,11 +13,12 @@ Once I've written a solver for the game, it's no longer an interesting game.
 ## Implement the Game
 
 The game as best as I can reverse-engineer it from playing it.
+(Oops, later found the source, TODO: check what the source does.)
 
 * 8x8 grid of power-of-two integers, randomly starting with 2,4,8 in each cell
 * Swap pairs of cells to make matches
 * Match 3 of a kind to replace with 2x that kind. [4, 4, 4] -> [8]
-  * Match 4 for 4x, match 5 for 8x, match 6 for 16x, etc 
+  * Match 4 for 4x, match 5 for 8x, match 6 for 16x, etc
 * The cell that was moved is the anchor and gets the new value
   * OR a match along both X and Y is anchored to the intersection
   * OR a secondary match due to shifting and infill shifts towards the top left
